@@ -1,6 +1,7 @@
 const std = @import("std");
 
 const PatchMap = std.StringHashMap([]const u8);
+const example_track = "src/assets/001 - Title.mp3";
 const InitSystem = enum {
     systemd,
     openrc,
@@ -145,6 +146,12 @@ fn installLy(allocator: std.mem.Allocator, io: std.Io, patch_map: PatchMap, inst
         try installFile(io, "res/example.dur", config_dir, ly_config_directory, "example.dur", .{ .permissions = .fromMode(0o755) });
 
         try installFile(io, "res/example.lua", config_dir, ly_config_directory, "example.lua", .{ .permissions = .fromMode(0o755) });
+
+        // The track played by the cava animation unless configured otherwise
+        installFile(io, example_track, config_dir, ly_config_directory, "example.mp3", .{}) catch |err| {
+            if (err != error.FileNotFound) return err;
+            std.debug.print("warn: " ++ example_track ++ " not found, the cava animation won't have a track to play by default.\n", .{});
+        };
     }
 
     {

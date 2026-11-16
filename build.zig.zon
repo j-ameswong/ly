@@ -11,6 +11,14 @@
             .url = "git+https://github.com/Hejsil/zig-clap?ref=master#05faf3905e8548f5cc269a8836e154065e70128d",
             .hash = "clap-0.12.0-oBajB4XpAQCF1WRKnD5KOKPsnwwT_NNdAJ7Ww3irYJac",
         },
+        .translate_c = .{
+            .url = "git+https://codeberg.org/ziglang/translate-c?ref=master#38d8339d9050eafe5dcf85b4fc9368576ca967e1",
+            .hash = "translate_c-0.0.0-Q_BUWoROBwAyokT5SJSw4YIrwdLd1w53i-pEYwBDqXZt",
+        },
+        .miniaudio = .{
+            .url = "git+https://github.com/mackron/miniaudio?ref=0.11.26#877ea4a7c2601c7b0f2a44e83dfac42e6470fea6",
+            .hash = "N-V-__8AAOYywgAhjsrAElPOjbuG-0yZyujq-XyG4tf353h2",
+        },
     },
     .paths = .{
         "build.zig",

@@ -1,5 +1,6 @@
 const std = @import("std");
 const builtin = @import("builtin");
+const Translator = @import("translate_c").Translator;
 
 const InitSystem = enum {
     systemd,
@@ -116,6 +117,28 @@ pub fn build(b: *std.Build) !void {
     const clap = b.dependency("clap", .{ .target = target, .optimize = optimize });
     exe.root_module.addImport("clap", clap.module("clap"));
 
+    // miniaudio decodes and plays the audio track of the cava animation. It
+    // loads the system's audio libraries at runtime, so it doesn't add any
+    // compile-time dependency.
+    const miniaudio_dep = b.dependency("miniaudio", .{});
+    const translate_c_dep = b.dependency("translate_c", .{});
+
+    const miniaudio: Translator = .init(translate_c_dep, .{
+        .c_source_file = b.path("src/audio/miniaudio_config.h"),
+        .target = target,
+        .optimize = optimize,
+    });
+    miniaudio.addIncludePath(miniaudio_dep.path(""));
+    exe.root_module.addImport("miniaudio", miniaudio.mod);
+
+    exe.root_module.addIncludePath(miniaudio_dep.path(""));
+    exe.root_module.addCSourceFile(.{
+        .file = b.path("src/audio/miniaudio.c"),
+        // The decoders rely on behavior that trips Zig's default C
+        // sanitizers in debug builds, so don't trap on those
+        .flags = &.{ "-std=gnu99", "-fno-sanitize=undefined" },
+    });
+
     exe.root_module.linkSystemLibrary("pam", .{});
     if (enable_x11_support) exe.root_module.linkSystemLibrary("xcb", .{});
 
@@ -127,6 +150,17 @@ pub fn build(b: *std.Build) !void {
 
     const run_step = b.step("run", "Run the app");
     run_step.dependOn(&run_cmd.step);
+
+    const spectrum_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/audio/Spectrum.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+
+    const test_step = b.step("test", "Run tests");
+    test_step.dependOn(&b.addRunArtifact(spectrum_tests).step);
 
     const installexe_step = b.step("installexe", "Install Ly and the selected init system service");
     installexe_step.dependOn(&InstallStep(

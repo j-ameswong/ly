@@ -43,6 +43,7 @@ ly = {
     -- gameoflife -> John Conway's Game of Life
     -- dur -> .dur file format (https://github.com/cmang/durdraw/tree/master)
     -- lua -> user-made animation written in LuaJIT
+    -- cava -> audio track with a visualizer in the style of cava
     animation = "none",
 
     -- Delay between each animation frame in milliseconds
@@ -142,6 +143,72 @@ ly = {
     -- If null, the keybind is disabled and isn't shown
     brightness_up_key = "F6",
 
+    -- Play the audio track of the cava animation out loud when Ly starts
+    -- If false, the track is only visualized, without any audio device being
+    -- used, until audio gets enabled with the key below
+    cava_audio = true,
+
+    -- Audio device to play the cava animation's track through
+    -- Its meaning depends on the audio system in use. With ALSA, which is what
+    -- gets used when Ly runs as a display manager, it's the name of a PCM as
+    -- listed by `aplay -L` (for example plughw:1,0)
+    -- If null, the default audio device is used
+    cava_audio_device = nil,
+
+    -- Audio track of the cava animation
+    -- WAV, FLAC, MP3 and Ogg Vorbis files are supported
+    cava_audio_file = "$CONFIG_DIRECTORY/ly/example.mp3",
+
+    -- Specifies the key combination used for turning the audio of the cava
+    -- animation on and off
+    -- If null, the keybind is disabled and isn't shown
+    cava_audio_key = "F9",
+
+    -- Number of empty columns between two bars of the cava animation
+    cava_bar_spacing = 1,
+
+    -- Width of the bars of the cava animation in columns
+    cava_bar_width = 2,
+
+    -- Cava animation colors, going from the bottom color for what's quiet to
+    -- the top color for what's loud, with the middle color in between
+    -- Styling options are ignored here
+    cava_bottom_color = 0x0000BFFF,
+    cava_middle_color = 0x008A2BE2,
+    cava_top_color = 0x00FF1493,
+
+    -- Start the cava animation's track over when it ends
+    cava_loop = true,
+
+    -- Vertical precision of the cava animation
+    -- high -> Eighths of a character, which the fonts of the Linux console
+    --         generally lack
+    -- low  -> Halves of a character, which every font has
+    -- auto -> low on the Linux console, high everywhere else (terminal
+    --         emulators, KMSCON)
+    cava_resolution = "auto",
+
+    -- Visualize the left and right channels of the cava animation's track
+    -- separately, with the lowest frequencies meeting in the middle
+    -- If false, both channels are mixed together, with the lowest frequencies
+    -- on the left
+    cava_stereo = true,
+
+    -- Style of the cava animation
+    -- bars        -> Spectrum bars rising from the bottom
+    -- mirror      -> Spectrum bars growing both ways from the middle
+    -- wave        -> Waveform, like an oscilloscope
+    -- spectrogram -> Spectrum over time, scrolling upwards
+    cava_style = "bars",
+
+    -- Specifies the key combination used for switching to the next style of
+    -- the cava animation
+    -- If null, the keybind is disabled and isn't shown
+    cava_style_key = "F10",
+
+    -- Volume of the cava animation's track, from 0 to 100
+    cava_volume = 100,
+
     -- Erase password input on failure
     clear_password = false,
 
@@ -179,6 +246,8 @@ ly = {
     -- britup   -> Brightness up key
     -- britdown -> Brightness down key
     -- password -> Toggle password key
+    -- audio    -> Toggle audio key (cava animation only)
+    -- style    -> Change style key (cava animation only)
     -- clock    -> Clock (format defined by 'clock' option)
     -- tty      -> Active TTY number
     -- battery  -> Battery percentage
@@ -204,7 +273,7 @@ ly = {
     corner_bottom_right = "labels",
 
     -- Top left
-    corner_top_left = "shutdown,restart,britup,britdown,password battery binds",
+    corner_top_left = "shutdown,restart,britup,britdown,password audio,style battery binds",
 
     -- Top right
     corner_top_right = "clock numlock,capslock",

@@ -8,6 +8,27 @@ pub const Animation = enum {
     gameoflife,
     dur,
     lua,
+    cava,
+};
+
+pub const CavaStyle = enum {
+    bars,
+    mirror,
+    wave,
+    spectrogram,
+
+    /// Returns the style coming after this one, going back to the first one
+    /// after the last.
+    pub fn next(self: CavaStyle) CavaStyle {
+        const count = @typeInfo(CavaStyle).@"enum".field_names.len;
+        return @enumFromInt((@as(usize, @intFromEnum(self)) + 1) % count);
+    }
+};
+
+pub const CavaResolution = enum {
+    auto,
+    high,
+    low,
 };
 
 pub const DisplayServer = enum {

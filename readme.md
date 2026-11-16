@@ -37,6 +37,9 @@ Join us on Matrix over at
 
 - brightnessctl
 
+- alsa-lib or libpulse (optional; only needed to hear the track of the
+  [cava animation](#cava-animation), and loaded at runtime)
+
 ### Distro-specific
 
 #### Debian
@@ -111,6 +114,44 @@ If you want to pimp your Ly installation even further than what the traditional
 configuration file allows you to, a
 [community repository](https://codeberg.org/fairyglade/ly-community) exists
 containing custom animations & scripts, so go check it out!
+
+## Cava animation
+
+This fork adds a `cava` animation, which plays an audio track and visualizes it
+in the style of [cava](https://github.com/karlstav/cava). To use it, set the
+following in `/etc/ly/config.lua`:
+
+```lua
+animation = "cava",
+cava_audio_file = "/path/to/a/track.mp3",
+```
+
+WAV, FLAC, MP3 and Ogg Vorbis files are supported. By default, the example track
+installed at `/etc/ly/example.mp3` is played.
+
+- `cava_style` selects one of the visualization styles: `bars`, `mirror`, `wave`
+  or `spectrogram`. You can also go through them with F10 (`cava_style_key`).
+
+- `cava_audio` decides whether the track is played out loud when Ly starts, or
+  only visualized. Either way, F9 (`cava_audio_key`) turns the audio on and off.
+
+- Every other `cava_*` option (colors, bar size, volume, looping...) is described
+  in the configuration file.
+
+A few things are worth knowing about audio on a login screen:
+
+- No sound server is running yet at that point, so the track is played straight
+  through ALSA. If you can't hear anything, check that the sound card isn't
+  muted (`alsamixer`, then `alsactl store` to keep the levels across reboots),
+  and if it goes to the wrong sound card, set `cava_audio_device`.
+
+- Ly lets go of the audio device as soon as you log in, and takes it back once
+  you log out.
+
+- The Linux console can only show a few hundred different characters, which
+  generally don't include the ones needed for smooth bars. Ly falls back to half
+  blocks there. If your console font has the eighth blocks (U+2581 to U+2587),
+  set `cava_resolution = "high"`.
 
 ## Support
 

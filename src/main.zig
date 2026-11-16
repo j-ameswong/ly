@@ -27,6 +27,7 @@ const Ini = ini.Ini;
 const custom = ly_core.custom;
 
 const Cascade = @import("animations/Cascade.zig");
+const Cava = @import("animations/Cava.zig");
 const ColorMix = @import("animations/ColorMix.zig");
 const Doom = @import("animations/Doom.zig");
 const DurFile = @import("animations/DurFile.zig");
@@ -93,6 +94,8 @@ const UiState = struct {
     toggle_password_label: Label,
     brightness_down_label: Label,
     brightness_up_label: Label,
+    toggle_audio_label: Label,
+    change_style_label: Label,
     numlock_label: Label,
     capslock_label: Label,
     battery_label: Label,
@@ -106,6 +109,7 @@ const UiState = struct {
     box: Box,
     info_line: InfoLine,
     animate: bool,
+    cava: ?*Cava,
     session: Session,
     saved_username: ?[]const u8,
     saved_users: SavedUsers,
@@ -485,6 +489,26 @@ pub fn main(init: std.process.Init) !void {
     );
     defer state.brightness_up_label.deinit();
 
+    state.toggle_audio_label = Label.init(
+        "",
+        null,
+        state.buffer.fg,
+        state.buffer.bg,
+        null,
+        null,
+    );
+    defer state.toggle_audio_label.deinit();
+
+    state.change_style_label = Label.init(
+        "",
+        null,
+        state.buffer.fg,
+        state.buffer.bg,
+        null,
+        null,
+    );
+    defer state.change_style_label.deinit();
+
     if (state.config.shutdown_key) |key| {
         try state.shutdown_label.setTextAlloc(
             state.allocator,
@@ -518,6 +542,20 @@ pub fn main(init: std.process.Init) !void {
             state.allocator,
             "{s} {s}",
             .{ key, state.lang.brightness_up },
+        );
+    }
+    if (state.config.cava_audio_key) |key| {
+        try state.toggle_audio_label.setTextAlloc(
+            state.allocator,
+            "{s} {s}",
+            .{ key, state.lang.toggle_audio },
+        );
+    }
+    if (state.config.cava_style_key) |key| {
+        try state.change_style_label.setTextAlloc(
+            state.allocator,
+            "{s} {s}",
+            .{ key, state.lang.change_style },
         );
     }
 
@@ -1034,6 +1072,8 @@ pub fn main(init: std.process.Init) !void {
 
     // Initialize the animation, if any
     var animation: ?*Widget = null;
+    var cava: Cava = undefined;
+    state.cava = null;
     switch (state.config.animation) {
         .none => {},
         .doom => {
@@ -1126,6 +1166,41 @@ pub fn main(init: std.process.Init) !void {
                 state.config.full_color,
             );
             animation = lua.widget();
+        },
+        .cava => {
+            cava = try Cava.init(
+                state.allocator,
+                state.io,
+                &state.log_file,
+                &state.buffer,
+                &state.info_line,
+                state.lang,
+                .{
+                    .audio_file = state.config.cava_audio_file,
+                    .audio_device = state.config.cava_audio_device,
+                    .play_audio = state.config.cava_audio,
+                    .loop = state.config.cava_loop,
+                    .volume = state.config.cava_volume,
+                    .style = state.config.cava_style,
+                    .resolution = state.config.cava_resolution,
+                    .use_kmscon_vt = state.use_kmscon_vt,
+                    .stereo = state.config.cava_stereo,
+                    .bar_width = state.config.cava_bar_width,
+                    .bar_spacing = state.config.cava_bar_spacing,
+                    .bottom_color = state.config.cava_bottom_color,
+                    .middle_color = state.config.cava_middle_color,
+                    .top_color = state.config.cava_top_color,
+                    .full_color = state.config.full_color,
+                    .error_fg = state.config.error_fg,
+                    .error_bg = state.config.error_bg,
+                },
+                &state.animate,
+                state.config.animation_timeout_sec,
+                state.config.animation_frame_delay,
+            );
+            // Without a track, there is nothing for the keybinds to act on
+            if (cava.player != null) state.cava = &cava;
+            animation = cava.widget();
         },
     }
     defer if (animation) |a| a.deinit();
@@ -1266,6 +1341,8 @@ pub fn main(init: std.process.Init) !void {
     try layer2.append(state.allocator, state.toggle_password_label.widget());
     try layer2.append(state.allocator, state.brightness_down_label.widget());
     try layer2.append(state.allocator, state.brightness_up_label.widget());
+    try layer2.append(state.allocator, state.toggle_audio_label.widget());
+    try layer2.append(state.allocator, state.change_style_label.widget());
     try layer2.append(state.allocator, state.battery_label.widget());
     try layer2.append(state.allocator, state.clock_label.widget());
     try layer2.append(state.allocator, state.tty_label.widget());
@@ -1316,6 +1393,10 @@ pub fn main(init: std.process.Init) !void {
     if (state.config.show_password_key) |key| try state.buffer.registerGlobalKeybind(state.io, key, &togglePasswordMask, &state);
     if (state.config.brightness_down_key) |key| try state.buffer.registerGlobalKeybind(state.io, key, &decreaseBrightnessCmd, &state);
     if (state.config.brightness_up_key) |key| try state.buffer.registerGlobalKeybind(state.io, key, &increaseBrightnessCmd, &state);
+    if (state.cava != null) {
+        if (state.config.cava_audio_key) |key| try state.buffer.registerGlobalKeybind(state.io, key, &toggleAudioCmd, &state);
+        if (state.config.cava_style_key) |key| try state.buffer.registerGlobalKeybind(state.io, key, &changeStyleCmd, &state);
+    }
 
     if (state.config.initial_info_text) |text| {
         try state.info_line.addMessage(text, state.config.bg, state.config.fg);
@@ -1598,6 +1679,11 @@ fn authenticate(ptr: *anyopaque) !bool {
     {
         state.log_file.deinit(state.io);
 
+        // The session needs the audio device for itself, and the process
+        // about to be created would otherwise hold on to it for as long as
+        // the session lasts
+        if (state.cava) |cava| cava.releaseAudio();
+
         session_pid = std.posix.system.fork();
         if (session_pid == 0) {
             const current_environment = state.session.label.list.items[state.session.label.current].environment;
@@ -1781,6 +1867,22 @@ fn increaseBrightnessCmd(ptr: *anyopaque) !bool {
             .{@errorName(err)},
         );
     };
+    return false;
+}
+
+fn toggleAudioCmd(ptr: *anyopaque) !bool {
+    var state: *UiState = @ptrCast(@alignCast(ptr));
+
+    if (state.cava) |cava| cava.toggleAudio();
+    state.buffer.drawNextFrame(true);
+    return false;
+}
+
+fn changeStyleCmd(ptr: *anyopaque) !bool {
+    var state: *UiState = @ptrCast(@alignCast(ptr));
+
+    if (state.cava) |cava| cava.cycleStyle();
+    state.buffer.drawNextFrame(true);
     return false;
 }
 
@@ -2071,6 +2173,30 @@ fn positionSingleWidget(state: *UiState, item: []const u8, current_x: *usize, cu
             if (width + 1 <= current_x.*) current_x.* -= width + 1;
         }
         return true;
+    } else if (std.mem.eql(u8, item, "audio")) {
+        if (state.cava == null or state.config.cava_audio_key == null) return false;
+        const width = TerminalBuffer.strWidth(state.toggle_audio_label.text);
+        if (is_left) {
+            state.toggle_audio_label.positionXY(Position.init(current_x.*, current_y));
+            current_x.* += width + 1;
+        } else {
+            const dwidth = if (width > current_x.*) 0 else current_x.* - width;
+            state.toggle_audio_label.positionXY(Position.init(dwidth, current_y));
+            if (width + 1 <= current_x.*) current_x.* -= width + 1;
+        }
+        return true;
+    } else if (std.mem.eql(u8, item, "style")) {
+        if (state.cava == null or state.config.cava_style_key == null) return false;
+        const width = TerminalBuffer.strWidth(state.change_style_label.text);
+        if (is_left) {
+            state.change_style_label.positionXY(Position.init(current_x.*, current_y));
+            current_x.* += width + 1;
+        } else {
+            const dwidth = if (width > current_x.*) 0 else current_x.* - width;
+            state.change_style_label.positionXY(Position.init(dwidth, current_y));
+            if (width + 1 <= current_x.*) current_x.* -= width + 1;
+        }
+        return true;
     } else if (std.mem.eql(u8, item, "clock") or std.mem.eql(u8, item, "time")) {
         if (state.config.clock == null) return false;
         const width = TerminalBuffer.strWidth(state.clock_label.text);
@@ -2288,6 +2414,8 @@ fn positionWidgets(ptr: *anyopaque) !void {
     state.toggle_password_label.positionXY(offscreen);
     state.brightness_down_label.positionXY(offscreen);
     state.brightness_up_label.positionXY(offscreen);
+    state.toggle_audio_label.positionXY(offscreen);
+    state.change_style_label.positionXY(offscreen);
     state.clock_label.positionXY(offscreen);
     state.bigclock_label.positionXY(offscreen);
     state.tty_label.positionXY(offscreen);

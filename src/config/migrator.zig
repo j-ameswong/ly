@@ -294,6 +294,9 @@ pub fn lateConfigFieldHandler(config: *Config, lang: Lang) void {
         config.doom_middle_color = Color.ECOL_YELLOW;
         config.doom_bottom_color = Color.ECOL_WHITE;
         config.cmatrix_head_col = Styling.BOLD | Color.ECOL_WHITE;
+        config.cava_bottom_color = Color.ECOL_CYAN;
+        config.cava_middle_color = Color.ECOL_BLUE;
+        config.cava_top_color = Color.ECOL_MAGENTA;
 
         // These may be in the config, so only change those which were not set
         if (!set_color_properties[0]) config.bg = Color.DEFAULT;
